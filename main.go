@@ -34,7 +34,7 @@ func main() {
 
 	e := echo.New()
 
-	e.GET("/cities/:cityName", getCityInformHandler)
+	e.GET("/city/:cityName", getCityInformHandler)
 
 	e.Start(":11000")
 }
