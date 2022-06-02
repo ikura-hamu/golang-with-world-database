@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -18,11 +19,11 @@ import (
 )
 
 type City struct {
-	ID          int    `json:"id,omitempty" db:"ID"`
-	Name        string `json:"name,omitempty" db:"Name"`
-	CountryCode string `json:"countryCode,omitempty" db:"CountryCode"`
-	District    string `json:"district,omitempty" db:"District"`
-	Population  int    `json:"population,omitempty" db:"Population"`
+	ID          int            `json:"id,omitempty" db:"ID"`
+	Name        sql.NullString `json:"name,omitempty" db:"Name"`
+	CountryCode sql.NullString `json:"countryCode,omitempty" db:"CountryCode"`
+	District    sql.NullString `json:"district,omitempty" db:"District"`
+	Population  sql.NullInt64  `json:"population,omitempty" db:"Population"`
 }
 
 var (
@@ -61,17 +62,17 @@ func main() {
 	withLogin := e.Group("")
 	withLogin.Use(checkLogin)
 	withLogin.GET("/cities/:cityName", getCityInformHandler)
-
+	withLogin.GET("/user", getUsernameHandler)
 	e.Start(":11000")
 }
 
 type LoginRequestBody struct {
 	Username string `json:"username,omitempty" form:"username"`
-	Password string `json:"password",omitempty form:"password"`
+	Password string `json:"password,omitempty" form:"password"`
 }
 
 type User struct {
-	Username   string `json:"username,omitempty" form:"username"`
+	Username   string `json:"username,omitempty" db:"Username"`
 	HashedPass string `json:"-" db:"HashedPass"`
 }
 
@@ -82,7 +83,7 @@ func postSignUpHandler(c echo.Context) error {
 	//もう少し真面目にバリデーションするべきらしい
 	if req.Password == "" || req.Username == "" {
 		//エラーは真面目に返すべきらしい
-		return c.String(http.StatusBadRequest, "項目が空です")
+		return c.String(http.StatusBadRequest, "項目が空です!")
 	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -102,7 +103,7 @@ func postSignUpHandler(c echo.Context) error {
 		return c.String(http.StatusConflict, "ユーザーがすでに存在しています")
 	}
 
-	_, err = db.Exec("INSERT INTO users (Username, HashedPass VALUES (?, ?)", req.Username, hashedPass)
+	_, err = db.Exec("INSERT INTO users (Username, HashedPass) VALUES (?, ?)", req.Username, hashedPass)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("db error: %v", err))
 	}
@@ -166,6 +167,15 @@ func getCityInformHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, city)
+}
+
+func getUsernameHandler(c echo.Context) error {
+	sess, err := session.Get("sessions", c)
+	if err != nil {
+		fmt.Println(err)
+		return c.String(http.StatusBadRequest, "somthing is wrong")
+	}
+	return c.String(http.StatusOK, fmt.Sprintf("You are '%v'", sess.Values["userName"]))
 }
 
 func addCity(c echo.Context) error {
