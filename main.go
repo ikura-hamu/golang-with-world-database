@@ -26,6 +26,10 @@ type City struct {
 	Population  sql.NullInt64  `json:"population,omitempty" db:"Population"`
 }
 
+type Me struct {
+	Username string `json:"username,omitempty"  db:"username"`
+}
+
 var (
 	db *sqlx.DB
 )
@@ -63,6 +67,7 @@ func main() {
 	withLogin.Use(checkLogin)
 	withLogin.GET("/cities/:cityName", getCityInformHandler)
 	withLogin.GET("/user", getUsernameHandler)
+	withLogin.GET("/whoami", getWhoAmIHandler)
 	e.Start(":11000")
 }
 
@@ -190,4 +195,12 @@ func addCity(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("afterSQL--%+v", er))
 	}
 	return c.JSON(http.StatusOK, "added successfully")
+}
+
+func getWhoAmIHandler(c echo.Context) error {
+	sess, _ := session.Get("sessions", c)
+
+	return c.JSON(http.StatusOK, Me{
+		Username: sess.Values["userName"].(string),
+	})
 }
