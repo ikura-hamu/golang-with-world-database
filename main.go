@@ -65,9 +65,12 @@ func main() {
 
 	withLogin := e.Group("")
 	withLogin.Use(checkLogin)
-	withLogin.GET("/cities/:cityName", getCityInformHandler)
+	withLogin.GET("/city/:cityName", getCityInformHandler)
 	withLogin.GET("/user", getUsernameHandler)
 	withLogin.GET("/whoami", getWhoAmIHandler)
+
+	e.GET("/countries", getCountriesHandler)
+	e.GET("/country/:oneCountry", getCitiesHandler)
 	e.Start(":11000")
 }
 
@@ -190,7 +193,7 @@ func addCity(c echo.Context) error {
 	if err != nil { //when an error happened
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%+v", newCity))
 	}
-	_, er := db.Exec(fmt.Sprintf("INSERT INTO city (Name, CountryCode, District, Population) VALUES ('%v', '%v', '%v', '%d')", newCity.Name, newCity.CountryCode, newCity.District, newCity.Population))
+	_, er := db.Exec("INSERT INTO city (Name, CountryCode, District, Population) VALUES (?, ?, ?, ?)", newCity.Name, newCity.CountryCode, newCity.District, newCity.Population)
 	if er != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("afterSQL--%+v", er))
 	}
@@ -203,4 +206,22 @@ func getWhoAmIHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, Me{
 		Username: sess.Values["userName"].(string),
 	})
+}
+
+func getCountriesHandler(c echo.Context) error {
+	var countries []string
+	db.Select(&countries, "SELECT Name from country ORDER BY Name ASC")
+	fmt.Println(countries)
+	return c.JSON(http.StatusOK, countries)
+}
+
+func getCitiesHandler(c echo.Context) error {
+	var cities []string
+	var countryCode string
+	oneCountry := c.Param("oneCountry")
+	db.Get(&countryCode, "select Code from country where Name=?", oneCountry)
+	fmt.Println(countryCode)
+	db.Select(&cities, "select Name from city where CountryCode=? ORDER BY Name ASC", countryCode)
+	fmt.Println(cities)
+	return c.JSON(http.StatusOK, cities)
 }
